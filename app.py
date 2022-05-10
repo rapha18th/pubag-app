@@ -59,12 +59,12 @@ def main():
 
     # User search
     user_input = st.text_area(
-        "Search box", "Agriculture Research")
+        "Search", "")
 
     # Filters
     st.sidebar.markdown("**Filters**")
     filter_year = st.sidebar.slider(
-        "Publication year", 2010, 2021, (2010, 2021), 1)
+        "Publication year", 1914, 2021, (1914, 2021), 1)
     num_results = st.sidebar.slider("Number of search results", 3, 10, 3)
 
     # Fetch results
