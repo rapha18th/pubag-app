@@ -21,7 +21,7 @@ conn = psycopg2.connect(
     database="postgres",
     user="rairo@pubag",
     sslmode="require",
-    password="pubag1036!")
+    password="")
 cursor = conn.cursor()
 #conn = engine.connect()
 
