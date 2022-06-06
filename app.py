@@ -5,6 +5,27 @@ import streamlit as st
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
+import psycopg2
+import sqlalchemy
+from sqlalchemy import create_engine
+from dotenv import load_dotenv
+import os
+import requests
+from rich import print
+
+#engine = create_engine('postgresql://rairo@pubag:pubag1036!@pubag.postgres.database.azure.com:5432/postgres')
+
+conn = psycopg2.connect(
+    host="pubag.postgres.database.azure.com",
+    port="5432",
+    database="postgres",
+    user="rairo@pubag",
+    sslmode="require",
+    password="pubag1036!")
+cursor = conn.cursor()
+#conn = engine.connect()
+
+
 
 def vector_search(query, model, index, num_results=10):
     """Tranforms query to vector using a pretrained, sentence-level
@@ -49,13 +70,82 @@ def load_faiss_index(path_to_faiss="faiss_index.pickle"):
     return faiss.deserialize_index(data)
 
 
+def detect_language(text, key, region, endpoint):
+    # Use the Translator detect function
+    path = '/detect'
+    url = endpoint + path
+    # Build the request
+    params = {
+        'api-version': '3.0'
+    }
+    headers = {
+        'Ocp-Apim-Subscription-Key': key,
+        'Ocp-Apim-Subscription-Region': region,
+        'Content-type': 'application/json'
+    }
+    body = [{
+        'text': text
+    }]
+    # Send the request and get response
+    request = requests.post(url, params=params, headers=headers, json=body)
+    response = request.json()
+    # Get language
+    language = response[0]["language"]
+    # Return the language
+    return language
+
+
+def translate(text, source_language, target_language, key, region, endpoint):
+    # Use the Translator translate function
+    url = endpoint + '/translate'
+    # Build the request
+    params = {
+        'api-version': '3.0',
+        'from': source_language,
+        'to': target_language
+    }
+    headers = {
+        'Ocp-Apim-Subscription-Key': key,
+        'Ocp-Apim-Subscription-Region': region,
+        'Content-type': 'application/json'
+    }
+    body = [{
+        'text': text
+    }]
+    # Send the request and get response
+    request = requests.post(url, params=params, headers=headers, json=body)
+    response = request.json()
+    # Get translation
+    translation = response[0]["translations"][0]["text"]
+    # Return the translation
+    return translation
+
+
+
 def main():
+
+    try:
+        # Get Configuration Settings
+        load_dotenv()
+        key = os.getenv('COG_SERVICE_KEY')
+        region = os.getenv('COG_SERVICE_REGION')
+        endpoint = 'https://api.cognitive.microsofttranslator.com'
+
+        text = 'hello!'
+        print('Detected language of "' + text + '":',
+              detect_language(text, key, region, endpoint))
+        target_lang = 'es'
+        print(target_lang + ":", translate(text, 'en',
+              target_lang, key, region, endpoint))
+    except Exception as ex:
+        print(ex)
+
     # Load data and models
     data = read_data()
     model = load_bert_model()
     faiss_index = load_faiss_index()
 
-    st.title("Vector-based searches with Sentence Transformers and Faiss")
+    st.title("Agricultural Science Search Powered by PubAG")
 
     # User search
     user_input = st.text_area(
@@ -70,27 +160,46 @@ def main():
     # Fetch results
     if user_input:
         # Get paper IDs
+
+        sc = detect_language(user_input, key, region, endpoint)
+        st.write(sc)
+        user_input = translate(user_input, sc,'en', key, region, endpoint)
         D, I = vector_search([user_input], model, faiss_index, num_results)
         # Slice data on year
         frame = data[
             (data.publication_year >= filter_year[0])
             & (data.publication_year <= filter_year[1])
         ]
+        #st.write(I)
         # Get individual results
+        results = []
         for id_ in I.flatten().tolist():
             if id_ in set(frame.id):
                 f = frame[(frame.id == id_)]
+                a = (user_input, f.iloc[0].title)
+                results.append(a)
+                print(results)
             else:
                 continue
 
             st.subheader(
-               f.iloc[0].title)
+                translate(f.iloc[0].title, 'en',
+                          sc, key, region, endpoint))
             st.write(f.iloc[0].url)
             st.write(f.iloc[0].publication_year)
 
-            st.subheader(f.iloc[0].abstract)
+            st.markdown(translate(f.iloc[0].abstract, 'en',
+                                  sc, key, region, endpoint))
+
+        sql = '''CREATE TABLE IF NOT EXISTS search_queries(search_query VARCHAR, results VARCHAR)'''
+        cursor.execute(sql)
+
+        for i in results:
+              cursor.execute("""INSERT into search_queries(search_query, results) VALUES (%s, %s)""", i)
 
 
+        # commit changes
+        conn.commit()
 
 
 if __name__ == "__main__":
