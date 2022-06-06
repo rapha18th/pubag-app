@@ -1,0 +1,33 @@
+api-version: 2019-12-01
+location: northeurope
+name: pubag_app
+properties:
+  containers:
+  - name: streamlitapp
+    properties:
+      image: pubagreg.azurecr.io/pubag_app:v1
+      ports:
+      - port: 80
+        protocol: TCP
+      - port: 443
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 2.0
+          memoryInGB: 1.5
+  imageRegistryCredentials:
+  - server: pubagreg.azurecr.io
+    username: pubagreg
+    password: LkyCRtsIZIylCigRBiL7NVxj=cowwV9a
+  restartPolicy: Never
+  ipAddress:
+    ports:
+    - port: 443
+      protocol: TCP
+    - port: 80
+      protocol: TCP
+    type: Public
+    dnsNameLabel: pubag
+  osType: Linux
+tags: null
+type: Microsoft.ContainerInstance/containerGroups
