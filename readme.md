@@ -6,7 +6,7 @@
 
 ### `pip install - r requirements.txt`
 
-### Create Azure for PostgresSQL service as well as Azure Cognitive service translator service and add your credentials
+### Create Azure for PostgresSQL service as well as Azure Cognitive Service translator and add your credentials
 
 ### `streamlit run app.py`
 
