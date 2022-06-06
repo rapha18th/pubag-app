@@ -145,7 +145,7 @@ def main():
     model = load_bert_model()
     faiss_index = load_faiss_index()
 
-    st.title("Agricultural Science Search Powered by PubAG")
+    st.title("Agro Science Search Powered by PubAG")
 
     # User search
     user_input = st.text_area(
